@@ -1,3 +1,4 @@
+# Personal health and performance exports
 performance-dashboard-backup-*.json
 performance-dashboard-analysis-*.csv
 *.health-data.json
