@@ -1,30 +1,74 @@
-# Performance Dashboard
+# Stack Manager
 
-A privacy-first, browser-only dashboard for self-observation of substances/medications, wellbeing, and task performance. It is a static GitHub Pages app: there is no server, account, analytics, or automatic upload.
+A **privacy-first, browser-only** reference tool for managing your personal substance library ("stack").
 
-> This app is a logging tool, not medical advice or a guide for starting, stopping, combining, or changing substances. Follow a licensed clinician's and pharmacist's directions.
+> All data is stored in browser `localStorage`. Nothing is sent to any server. Export JSON backups regularly.
 
-## Privacy and storage
+## Features
 
-Entries are saved only in browser `localStorage` under `performance-dashboard.entries.v1`. They are **not cookies** and are not sent to GitHub or any other server.
+- **Drug Index** — Searchable, filterable library of substances with full pharmacokinetic profiles
+- **Per-drug data fields**: drug class, schedule, mechanism of action, routes of administration
+- **Pharmacokinetics**: onset, T‍max, half-life (t½), duration (total, peak, after-effects), bioavailability, volume of distribution, protein binding, metabolic pathway, active metabolites, excretion
+- **Dosing tiers**: threshold, light, common/moderate, strong, frequency/redosing
+- **Interactions & Safety**: drug interactions, contraindications, side effects, tolerance/dependence notes
+- **Tags & free-text notes** per entry
+- **Dose Log** — Timestamped log with substance, dose, unit, route, context, notes
+- **Active Timeline** — Live view of what's currently active based on logged doses + duration windows, with phase labels (Onset → Coming up → Peak → Offset → Fading)
+- **Import / Export** — JSON backup (full restore) and CSV export for analysis
+- **Dark mode** with system preference detection + manual toggle
 
-Local browser storage can be erased when site data is cleared or devices fail. Export JSON backups regularly and keep them private. Never commit exported health data to this public repository.
+## Usage
 
-## Backup and analysis
+1. Open `index.html` in any modern browser (no server required)
+2. Navigate to **Add / Edit Drug** to build your index
+3. Use **Dose Log** to record doses
+4. Check **Active Timeline** to see current phase and remaining duration
+5. Export a JSON backup regularly via **Import / Export**
 
-- **Export backup (JSON):** full portable backup for restoring to this app.
-- **Import backup:** merges entries by unique ID without duplicating them.
-- **Export analysis (CSV):** produces a flat table with ISO timestamps for spreadsheets or analysis.
+## Schema
 
-CSV fields: `id,timestamp,type,substance,dose,unit,route,focus,energy,mood,wellbeing,discomfort,stress,performance,sideEffects,context,notes`.
+Data is stored as JSON arrays in `localStorage`:
 
-## GitHub Pages
+```json
+// stack-manager.drugs.v1
+[
+  {
+    "id": "uuid",
+    "name": "Modafinil",
+    "aliases": "Provigil, Modalert",
+    "drugClass": "Eugeroic",
+    "schedule": "Schedule IV",
+    "moa": "DAT inhibitor, orexin system activator",
+    "routes": "Oral",
+    "tmax": "2–3",
+    "halflife": "12–15",
+    "onset": "0.5–1",
+    "durationTotal": "10–12",
+    "durationPeak": "3–5",
+    "afterEffects": "2–3",
+    "bioavailability": "~80%",
+    "vd": "0.9",
+    "proteinBinding": "60%",
+    "metabolicPathway": "Hepatic amide hydrolysis, CYP3A4",
+    "metabolites": "Modafinil sulfone, modafinil acid",
+    "excretion": "Renal, ~80%",
+    "doseThreshold": "25",
+    "doseLight": "50–100",
+    "doseCommon": "100–200",
+    "doseStrong": "200–400",
+    "doseUnit": "mg",
+    "doseFrequency": "Once daily AM, max 1 redose before noon",
+    "interactions": "Hormonal contraceptives (reduced efficacy), MAOIs, CNS stimulants",
+    "contraindications": "Hypersensitivity, left ventricular hypertrophy, arrhythmias",
+    "sideEffects": "Headache, insomnia, nausea, anxiety, reduced appetite",
+    "tolerance": "Minimal; functional tolerance reported with daily use",
+    "tags": "nootropic, wakefulness, eugeroic",
+    "notes": "Best taken early AM on empty stomach. Avoid PM doses.",
+    "createdAt": "2026-08-25T00:00:00.000Z"
+  }
+]
+```
 
-1. Open repository **Settings** then **Pages**.
-2. Under Build and deployment, choose **Deploy from a branch**.
-3. Select branch `main` and folder `/ (root)`, then save.
-4. GitHub will display the deployed site URL.
+## Disclaimer
 
-## Accessible design
-
-Semantic forms, visible keyboard focus, a skip link, responsive layout, native controls, status messages, and reduced-motion support are included.
+This is a personal reference and observation tool. It is **not** medical advice. Always consult licensed clinicians and current pharmacological literature.
