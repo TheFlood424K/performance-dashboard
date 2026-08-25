@@ -1,1 +1,253 @@
-<!-- Stack Manager — see app.js for logic, styles.css for design tokens -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stack Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<div class="app-shell">
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar" aria-label="Primary navigation">
+    <div class="sidebar-header">
+      <svg class="logo" viewBox="0 0 32 32" fill="none" aria-label="Stack Manager" width="28" height="28">
+        <rect x="4" y="20" width="7" height="9" rx="1.5" fill="currentColor" opacity="0.55"/>
+        <rect x="12.5" y="13" width="7" height="16" rx="1.5" fill="currentColor" opacity="0.75"/>
+        <rect x="21" y="6" width="7" height="23" rx="1.5" fill="currentColor"/>
+      </svg>
+      <span class="logo-text">Stack Manager</span>
+      <button class="sidebar-toggle icon-btn" aria-label="Collapse sidebar" id="sidebar-collapse">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+    </div>
+    <ul class="nav-list" role="list">
+      <li><button class="nav-item active" data-view="index">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h16M4 14h12M4 18h8"/></svg>
+        <span>Drug Index</span>
+      </button></li>
+      <li><button class="nav-item" data-view="log">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Dose Log</span>
+      </button></li>
+      <li><button class="nav-item" data-view="schedule">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Active Window</span>
+      </button></li>
+      <li><button class="nav-item" data-view="data">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span>Data &amp; Export</span>
+      </button></li>
+    </ul>
+    <div class="sidebar-footer">
+      <button class="icon-btn theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div class="main-wrapper">
+    <header class="topbar">
+      <button class="icon-btn hamburger" id="hamburger" aria-label="Open menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <h1 class="page-title" id="page-title">Drug Index</h1>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </header>
+
+    <main id="main-content" class="main-content">
+
+      <!-- VIEW: Drug Index -->
+      <section id="view-index" class="view active">
+        <div class="toolbar">
+          <div class="search-wrap">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="drug-search" placeholder="Search drugs, metabolites…" class="search-input" aria-label="Search drugs">
+          </div>
+          <button class="btn btn-primary" id="add-drug-btn">+ Add Drug</button>
+        </div>
+        <div id="drug-grid" class="drug-grid" role="list"></div>
+        <div id="drug-empty" class="empty-state" hidden>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="11" y2="17"/></svg>
+          <p>No drugs in index yet.<br>Add your first entry above.</p>
+        </div>
+      </section>
+
+      <!-- VIEW: Dose Log -->
+      <section id="view-log" class="view">
+        <div class="toolbar">
+          <h2 class="section-title">Log a Dose</h2>
+        </div>
+        <form id="dose-form" class="card form-card" novalidate>
+          <div class="form-row">
+            <label class="field">
+              <span class="label-text">Drug <span class="required">*</span></span>
+              <select name="drugId" id="dose-drug-select" required>
+                <option value="">— select —</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="label-text">Dose</span>
+              <div class="input-group">
+                <input type="number" name="dose" min="0" step="any" placeholder="e.g. 10">
+                <select name="unit"><option>mg</option><option>µg</option><option>g</option><option>mL</option><option>IU</option><option>other</option></select>
+              </div>
+            </label>
+            <label class="field">
+              <span class="label-text">Route</span>
+              <select name="route">
+                <option>oral</option><option>sublingual</option><option>insufflation</option>
+                <option>IV</option><option>IM</option><option>transdermal</option><option>rectal</option><option>other</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-row">
+            <label class="field">
+              <span class="label-text">Time taken</span>
+              <input type="datetime-local" name="timestamp" id="dose-timestamp">
+            </label>
+            <label class="field">
+              <span class="label-text">Notes</span>
+              <input type="text" name="notes" placeholder="context, interactions…">
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Log dose</button>
+          </div>
+        </form>
+
+        <h2 class="section-title mt">History</h2>
+        <div id="log-list" class="log-list"></div>
+        <div id="log-empty" class="empty-state" hidden>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <p>No doses logged yet.</p>
+        </div>
+      </section>
+
+      <!-- VIEW: Active Window -->
+      <section id="view-schedule" class="view">
+        <div class="toolbar"><h2 class="section-title">Active Effects Window</h2></div>
+        <p class="muted-hint">Based on last logged dose and PK data from the drug index. <strong>Not medical advice.</strong></p>
+        <div id="active-cards" class="active-grid"></div>
+        <div id="active-empty" class="empty-state" hidden>
+          <p>No recent doses with PK data. Log a dose first.</p>
+        </div>
+      </section>
+
+      <!-- VIEW: Data & Export -->
+      <section id="view-data" class="view">
+        <div class="toolbar"><h2 class="section-title">Data &amp; Export</h2></div>
+        <div class="data-actions card">
+          <div class="data-action-group">
+            <h3>Backup</h3>
+            <p class="muted">Exports everything: drug index + dose log.</p>
+            <div class="btn-row">
+              <button class="btn btn-secondary" id="export-json">Export JSON backup</button>
+              <button class="btn btn-secondary" id="export-csv">Export CSV (log)</button>
+            </div>
+          </div>
+          <div class="data-action-group">
+            <h3>Restore</h3>
+            <p class="muted">Import a previous JSON backup. Duplicate entries are skipped.</p>
+            <label class="btn btn-secondary file-label">
+              Import backup
+              <input type="file" accept=".json" id="import-file" style="display:none">
+            </label>
+          </div>
+          <div class="data-action-group danger-zone">
+            <h3>Danger zone</h3>
+            <button class="btn btn-danger" id="clear-data">Clear all data</button>
+          </div>
+        </div>
+        <p class="privacy-note">All data is stored only in your browser's <code>localStorage</code>. Nothing is sent to any server.</p>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- Drug modal -->
+<div id="drug-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="drug-modal-title" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="drug-modal-title">Add Drug</h2>
+      <button class="icon-btn" id="drug-modal-close" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form id="drug-form" class="modal-body" novalidate>
+      <input type="hidden" name="id">
+      <div class="form-row">
+        <label class="field">
+          <span class="label-text">Drug name <span class="required">*</span></span>
+          <input type="text" name="name" required placeholder="e.g. Modafinil">
+        </label>
+        <label class="field">
+          <span class="label-text">Class / category</span>
+          <input type="text" name="category" placeholder="e.g. Wakefulness agent">
+        </label>
+      </div>
+      <div class="form-row three">
+        <label class="field">
+          <span class="label-text">Onset (min)</span>
+          <input type="text" name="onsetMin" placeholder="e.g. 30–60">
+        </label>
+        <label class="field">
+          <span class="label-text">Peak (min)</span>
+          <input type="text" name="peakMin" placeholder="e.g. 120–180">
+        </label>
+        <label class="field">
+          <span class="label-text">Duration (h)</span>
+          <input type="text" name="durationH" placeholder="e.g. 8–12">
+        </label>
+      </div>
+      <div class="form-row three">
+        <label class="field">
+          <span class="label-text">Half-life (h)</span>
+          <input type="text" name="halfLifeH" placeholder="e.g. 12–15">
+        </label>
+        <label class="field">
+          <span class="label-text">Bioavailability (%)</span>
+          <input type="text" name="bioavailability" placeholder="e.g. ~80">
+        </label>
+        <label class="field">
+          <span class="label-text">Metabolism</span>
+          <input type="text" name="metabolism" placeholder="e.g. Hepatic (CYP3A4)">
+        </label>
+      </div>
+      <label class="field">
+        <span class="label-text">Metabolites</span>
+        <input type="text" name="metabolites" placeholder="e.g. Modafinil sulfone, Modafinil acid">
+      </label>
+      <label class="field">
+        <span class="label-text">Mechanism of action</span>
+        <input type="text" name="mechanism" placeholder="e.g. DAT/NET reuptake inhibitor">
+      </label>
+      <label class="field">
+        <span class="label-text">Typical dose range</span>
+        <input type="text" name="doseRange" placeholder="e.g. 100–200 mg">
+      </label>
+      <label class="field">
+        <span class="label-text">Interactions / notes</span>
+        <textarea name="interactions" rows="3" placeholder="Drug interactions, contraindications, wash-out notes…"></textarea>
+      </label>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" id="drug-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save drug</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
