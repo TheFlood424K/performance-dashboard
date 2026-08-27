@@ -181,6 +181,39 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
+
+    <!-- Web Lookup Panel -->
+    <div class="lookup-panel" id="lookup-panel">
+      <button class="lookup-toggle" id="lookup-toggle" type="button" aria-expanded="false" aria-controls="lookup-body">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Auto-fill from web
+        <svg class="lookup-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="lookup-body" id="lookup-body" hidden>
+        <div class="lookup-search-row">
+          <input type="text" id="lookup-query" class="lookup-input" placeholder="Drug name to look up…" aria-label="Lookup query">
+          <button type="button" class="btn btn-secondary btn-sm" id="lookup-search-btn">Search</button>
+        </div>
+        <div class="lookup-sources" role="group" aria-label="Data sources">
+          <label class="source-check">
+            <input type="checkbox" name="src" value="openfda" checked> OpenFDA
+          </label>
+          <label class="source-check">
+            <input type="checkbox" name="src" value="rxnav" checked> RxNav (NLM)
+          </label>
+          <label class="source-check">
+            <input type="checkbox" name="src" value="wikipedia" checked> Wikipedia
+          </label>
+        </div>
+        <div id="lookup-status" class="lookup-status" hidden></div>
+        <div id="lookup-results" class="lookup-results" hidden role="list" aria-label="Search results"></div>
+        <div id="lookup-actions" class="lookup-actions" hidden>
+          <button type="button" class="btn btn-primary btn-sm" id="lookup-populate-btn">Populate fields from selected</button>
+          <span class="lookup-hint">Only non-empty fields will be filled. Existing values will be overwritten.</span>
+        </div>
+      </div>
+    </div>
+
     <form id="drug-form" class="modal-body" novalidate>
       <input type="hidden" name="id">
       <div class="form-row">

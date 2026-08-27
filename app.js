@@ -108,19 +108,37 @@ function openDrugModal(id){
   const form=$('#drug-form');
   const title=$('#drug-modal-title');
   form.reset();
+  resetLookupPanel();
   if(id){
     const d=drugs.find(x=>x.id===id);
     if(!d)return;
     title.textContent='Edit Drug';
     Object.keys(d).forEach(k=>{const el=form.elements[k];if(el)el.value=d[k]??'';});
+    // Pre-fill lookup query from existing drug name
+    $('#lookup-query').value=d.name||'';
   } else {
     title.textContent='Add Drug';
     form.elements.id.value='';
+    $('#lookup-query').value='';
   }
   modal.hidden=false;
   modal.querySelector('input[name=name]').focus();
+
+  // Sync lookup query when name field changes
+  const nameInput=form.querySelector('input[name=name]');
+  nameInput._syncHandler=()=>{
+    if(!$('#lookup-query').dataset.manuallyEdited){
+      $('#lookup-query').value=nameInput.value;
+    }
+  };
+  nameInput.addEventListener('input',nameInput._syncHandler);
 }
-function closeDrugModal(){$('#drug-modal').hidden=true}
+function closeDrugModal(){
+  $('#drug-modal').hidden=true;
+  // Remove sync handler
+  const nameInput=$('#drug-form').querySelector('input[name=name]');
+  if(nameInput._syncHandler)nameInput.removeEventListener('input',nameInput._syncHandler);
+}
 $('#drug-modal-close').addEventListener('click',closeDrugModal);
 $('#drug-modal-cancel').addEventListener('click',closeDrugModal);
 $('#drug-modal').addEventListener('click',e=>{if(e.target===$('#drug-modal'))closeDrugModal()});
@@ -139,7 +157,350 @@ $('#drug-form').addEventListener('submit',e=>{
   msg(fd.id?'Drug updated.':'Drug added.');
 });
 
-// Dose Log
+// ─── Web Lookup ───────────────────────────────────────────────────────────────
+
+let lookupResults=[];
+
+function resetLookupPanel(){
+  lookupResults=[];
+  $('#lookup-body').hidden=true;
+  $('#lookup-toggle').setAttribute('aria-expanded','false');
+  $('#lookup-status').hidden=true;
+  $('#lookup-results').hidden=true;
+  $('#lookup-actions').hidden=true;
+  $('#lookup-results').innerHTML='';
+  delete $('#lookup-query').dataset.manuallyEdited;
+}
+
+$('#lookup-toggle').addEventListener('click',()=>{
+  const body=$('#lookup-body');
+  const expanded=body.hidden;
+  body.hidden=!expanded;
+  $('#lookup-toggle').setAttribute('aria-expanded',String(expanded));
+  if(expanded){
+    // Sync query from name field if empty
+    const nameVal=$('#drug-form').querySelector('input[name=name]').value;
+    if(!$('#lookup-query').value&&nameVal)$('#lookup-query').value=nameVal;
+    $('#lookup-query').focus();
+  }
+});
+
+// Mark as manually edited so we stop syncing from name field
+$('#lookup-query').addEventListener('input',()=>{
+  $('#lookup-query').dataset.manuallyEdited='1';
+});
+
+$('#lookup-search-btn').addEventListener('click',runLookup);
+$('#lookup-query').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();runLookup();}});
+
+async function runLookup(){
+  const query=$('#lookup-query').value.trim();
+  if(!query){msg('Enter a drug name to look up.');return;}
+
+  const sources=[...$$("#lookup-body input[name='src']:checked")].map(c=>c.value);
+  if(!sources.length){msg('Select at least one source.');return;}
+
+  lookupResults=[];
+  $('#lookup-results').innerHTML='';
+  $('#lookup-results').hidden=true;
+  $('#lookup-actions').hidden=true;
+
+  const status=$('#lookup-status');
+  status.textContent='Searching…';
+  status.hidden=false;
+
+  const searches=[];
+  if(sources.includes('openfda'))searches.push(searchOpenFDA(query));
+  if(sources.includes('rxnav'))searches.push(searchRxNav(query));
+  if(sources.includes('wikipedia'))searches.push(searchWikipedia(query));
+
+  const settled=await Promise.allSettled(searches);
+  settled.forEach(r=>{
+    if(r.status==='fulfilled'&&r.value)lookupResults.push(...(Array.isArray(r.value)?r.value:[r.value]));
+  });
+
+  if(!lookupResults.length){
+    status.textContent='No results found. Try a different name or source.';
+    return;
+  }
+
+  status.textContent=`${lookupResults.length} result${lookupResults.length>1?'s':''} found. Select one to populate.`;
+  renderLookupResults();
+}
+
+function renderLookupResults(){
+  const container=$('#lookup-results');
+  container.innerHTML=lookupResults.map((r,i)=>{
+    const preview=buildPreview(r);
+    return`<label class="lookup-result-card" role="listitem">
+      <input type="radio" name="lookup-choice" value="${i}" ${i===0?'checked':''}>
+      <div class="lookup-result-body">
+        <div class="lookup-result-header">
+          <span class="lookup-source-badge src-${esc(r.source)}">${esc(r.sourceLabel)}</span>
+          <span class="lookup-result-name">${esc(r.name)}</span>
+        </div>
+        ${preview?`<div class="lookup-result-preview">${esc(preview)}</div>`:''}
+      </div>
+    </label>`;
+  }).join('');
+  container.hidden=false;
+  $('#lookup-actions').hidden=false;
+}
+
+function buildPreview(r){
+  const parts=[];
+  if(r.category)parts.push(r.category);
+  if(r.halfLifeH)parts.push(`t½ ${r.halfLifeH}`);
+  if(r.mechanism)parts.push(r.mechanism.slice(0,80)+(r.mechanism.length>80?'…':''));
+  if(!parts.length&&r.notes)parts.push(r.notes.slice(0,100)+(r.notes.length>100?'…':''));
+  return parts.join(' · ');
+}
+
+$('#lookup-populate-btn').addEventListener('click',()=>{
+  const radio=$('#lookup-results input[name="lookup-choice"]:checked');
+  if(!radio){msg('Select a result first.');return;}
+  const r=lookupResults[parseInt(radio.value,10)];
+  if(!r)return;
+  populateFromLookup(r);
+  msg(`Fields populated from ${r.sourceLabel}.`);
+});
+
+function populateFromLookup(r){
+  const form=$('#drug-form');
+  const fields=['name','category','onsetMin','peakMin','durationH','halfLifeH','bioavailability','metabolism','metabolites','mechanism','doseRange','interactions'];
+  fields.forEach(k=>{
+    if(r[k]!==undefined&&r[k]!==null&&String(r[k]).trim()!==''){
+      const el=form.elements[k];
+      if(el)el.value=r[k];
+    }
+  });
+  // After populating, collapse the panel
+  $('#lookup-body').hidden=true;
+  $('#lookup-toggle').setAttribute('aria-expanded','false');
+}
+
+// ─── OpenFDA ─────────────────────────────────────────────────────────────────
+
+async function searchOpenFDA(query){
+  const q=encodeURIComponent(query);
+  const urls=[
+    `https://api.fda.gov/drug/label.json?search=openfda.generic_name:%22${q}%22&limit=3`,
+    `https://api.fda.gov/drug/label.json?search=openfda.brand_name:%22${q}%22&limit=3`,
+  ];
+  let results=[];
+  for(const url of urls){
+    try{
+      const r=await fetch(url);
+      if(!r.ok)continue;
+      const data=await r.json();
+      if(data.results&&data.results.length){
+        results.push(...data.results);
+        break;
+      }
+    }catch{}
+  }
+  if(!results.length){
+    // Fuzzy fallback
+    try{
+      const r=await fetch(`https://api.fda.gov/drug/label.json?search=${encodeURIComponent(query)}&limit=3`);
+      if(r.ok){
+        const data=await r.json();
+        if(data.results)results.push(...data.results);
+      }
+    }catch{}
+  }
+
+  return results.slice(0,3).map(item=>parseOpenFDA(item,query));
+}
+
+function first(arr){
+  if(!arr)return '';
+  const v=Array.isArray(arr)?arr[0]:arr;
+  return String(v||'').trim();
+}
+
+function extractPK(pkText){
+  if(!pkText)return{};
+  const out={};
+  // Half-life
+  const hlMatch=pkText.match(/half[- ]?life[^\d]*([\d.]+(?:[–-][\d.]+)?)\s*(?:to\s*[\d.]+)?\s*h(?:our)?s?/i);
+  if(hlMatch)out.halfLifeH=hlMatch[1];
+  // Bioavailability
+  const baMatch=pkText.match(/(?:oral\s+)?bioavailability[^\d~≈]*([~≈]?[\d.]+(?:[–-][\d.]+)?\s*%)/i);
+  if(baMatch)out.bioavailability=baMatch[1].replace('%','').trim();
+  // Tmax / peak (convert hours to minutes if needed)
+  const tmaxMatch=pkText.match(/T(?:max|peak)[^\d]*([\d.]+(?:[–-][\d.]+)?)\s*(h(?:ours?)?|min(?:utes?)?)/i);
+  if(tmaxMatch){
+    const val=tmaxMatch[1];const unit=tmaxMatch[2].toLowerCase();
+    out.peakMin=unit.startsWith('h')?`${parseFloat(val)*60}`:`${val}`;
+  }
+  // Metabolism
+  const metabMatch=pkText.match(/(?:metabolized|metabolised)[^.]{0,80}(CYP[\w,\s/]+)/i);
+  if(metabMatch)out.metabolism=`Hepatic (${metabMatch[1].trim().replace(/\s+/,' ')})`;
+  return out;
+}
+
+function parseOpenFDA(item,query){
+  const openfda=item.openfda||{};
+  const name=first(openfda.generic_name)||first(openfda.brand_name)||query;
+  const category=first(openfda.pharm_class_cs)||first(openfda.pharm_class_epc)||'';
+  const pkText=first(item.clinical_pharmacology)||first(item.pharmacokinetics)||'';
+  const moaText=first(item.mechanism_of_action)||'';
+  const doseText=first(item.dosage_and_administration)||'';
+  const interText=first(item.drug_interactions)||'';
+  const pk=extractPK(pkText);
+
+  // Dose range extraction
+  let doseRange='';
+  const doseMatch=doseText.match(/(?:recommended|usual|typical)?\s*(?:dose|dosage)[^\d]*([\d.]+(?:[–-][\d.]+)?\s*mg(?:\/[\w]+)?)/i);
+  if(doseMatch)doseRange=doseMatch[1];
+
+  // Mechanism
+  let mechanism=moaText.slice(0,150)||'';
+  if(mechanism.length===150)mechanism+='…';
+
+  const notes=[
+    interText?`Interactions: ${interText.slice(0,200)}${interText.length>200?'…':''}`:'',
+  ].filter(Boolean).join(' | ');
+
+  return{
+    source:'openfda',
+    sourceLabel:'OpenFDA',
+    name:name.charAt(0).toUpperCase()+name.slice(1).toLowerCase(),
+    category,
+    mechanism,
+    doseRange,
+    notes,
+    interactions:interText.slice(0,400)||'',
+    ...pk,
+  };
+}
+
+// ─── RxNav (NLM) ─────────────────────────────────────────────────────────────
+
+async function searchRxNav(query){
+  try{
+    const url=`https://rxnav.nlm.nih.gov/REST/drugs.json?name=${encodeURIComponent(query)}`;
+    const r=await fetch(url);
+    if(!r.ok)return[];
+    const data=await r.json();
+    const groups=data.drugGroup?.conceptGroup||[];
+    const concepts=[];
+    for(const g of groups){
+      if(g.conceptProperties)concepts.push(...g.conceptProperties);
+    }
+    if(!concepts.length)return[];
+    // Fetch properties for top 2 rxcuis
+    const top=concepts.slice(0,2);
+    const results=await Promise.all(top.map(c=>fetchRxNavProps(c)));
+    return results.filter(Boolean);
+  }catch{return[];}
+}
+
+async function fetchRxNavProps(concept){
+  try{
+    const rxcui=concept.rxcui;
+    const name=concept.name||'';
+    // Get related ingredient name and drug class
+    const [propRes,classRes]=await Promise.allSettled([
+      fetch(`https://rxnav.nlm.nih.gov/REST/rxcui/${rxcui}/allProperties.json?prop=all`),
+      fetch(`https://rxnav.nlm.nih.gov/REST/rxcui/${rxcui}/classes.json`),
+    ]);
+    let category='';
+    if(classRes.status==='fulfilled'&&classRes.value.ok){
+      const cd=await classRes.value.json();
+      const cls=cd.rxclassDrugInfoList?.rxclassDrugInfo;
+      if(cls&&cls.length){
+        const epc=cls.find(c=>c.rxclassMinConceptItem?.classType==='EPC');
+        const mesh=cls.find(c=>c.rxclassMinConceptItem?.classType==='MESH');
+        category=(epc||mesh)?.rxclassMinConceptItem?.className||'';
+      }
+    }
+    let props={};
+    if(propRes.status==='fulfilled'&&propRes.value.ok){
+      const pd=await propRes.value.json();
+      const list=pd.propConceptGroup?.propConcept||[];
+      list.forEach(p=>{
+        const n=(p.propName||'').toLowerCase();
+        if(n.includes('half-life')||n.includes('halflife'))props.halfLifeH=p.propValue;
+        if(n.includes('bioavail'))props.bioavailability=p.propValue;
+        if(n.includes('mechanism'))props.mechanism=p.propValue;
+        if(n.includes('metaboli'))props.metabolism=p.propValue;
+      });
+    }
+    return{
+      source:'rxnav',
+      sourceLabel:'RxNav (NLM)',
+      name:name.charAt(0).toUpperCase()+name.slice(1).toLowerCase(),
+      category,
+      rxcui,
+      ...props,
+    };
+  }catch{return null;}
+}
+
+// ─── Wikipedia ───────────────────────────────────────────────────────────────
+
+async function searchWikipedia(query){
+  // Try exact title first, then search for top result
+  const slug=query.trim().replace(/\s+/g,'_');
+  try{
+    const summaryUrl=`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(slug)}`;
+    const r=await fetch(summaryUrl);
+    if(r.ok){
+      const data=await r.json();
+      if(data.type!=='disambiguation')return[parseWikipedia(data,query)];
+    }
+  }catch{}
+  // Fallback: search API
+  try{
+    const searchUrl=`https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=3&format=json&origin=*`;
+    const sr=await fetch(searchUrl);
+    if(!sr.ok)return[];
+    const sd=await sr.json();
+    const titles=sd[1]||[];
+    if(!titles.length)return[];
+    // Fetch summary for first result
+    const topSlug=titles[0].replace(/\s+/g,'_');
+    const sumR=await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topSlug)}`);
+    if(!sumR.ok)return[];
+    const sumData=await sumR.json();
+    return[parseWikipedia(sumData,query)];
+  }catch{return[];}
+}
+
+function parseWikipedia(data,query){
+  const rawDesc=data.description||'';
+  const extract=data.extract||'';
+  const name=data.title||query;
+
+  // Try to extract category from description
+  const category=rawDesc.charAt(0).toUpperCase()+rawDesc.slice(1);
+
+  // Try to pull half-life from extract
+  const pk=extractPK(extract);
+
+  // Mechanism: look for mechanism-related sentence
+  let mechanism='';
+  const mechSentence=extract.match(/(?:works?|act[s]?|function[s]?)\s+(?:by|as|through)[^.]{10,150}\./i);
+  if(mechSentence)mechanism=mechSentence[0].trim();
+
+  // Notes: first 200 chars of extract
+  const notes=extract.slice(0,200)+(extract.length>200?'…':'');
+
+  return{
+    source:'wikipedia',
+    sourceLabel:'Wikipedia',
+    name,
+    category:category.length<80?category:'',
+    mechanism,
+    notes,
+    ...pk,
+  };
+}
+
+// ─── Dose Log ─────────────────────────────────────────────────────────────────
+
 function populateDrugSelect(){
   const sel=$('#dose-drug-select');
   const cur=sel.value;
